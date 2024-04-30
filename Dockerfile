@@ -1,11 +1,10 @@
-# Use PHP 7.4
-FROM php:7.4-fpm
+# Use PHP 7.2
+FROM php:7.2-fpm
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Set DNS servers (optional but recommended)
-#RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
+RUN ls -la  
 
 # Update package lists and install necessary packages
 RUN apt-get update && apt-get install -y \
@@ -22,11 +21,15 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     libonig-dev \
-    libzip-dev
+    libzip-dev \
+    libmariadb-dev
 
 # Install PHP extensions
-RUN docker-php-ext-configure gd --enable-gd --with-freetype --with-jpeg
-RUN docker-php-ext-install gd pdo pdo_mysql zip
+RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/
+RUN docker-php-ext-install -j$(nproc) gd
+
+# Install pdo_mysql extension
+RUN docker-php-ext-install pdo_mysql
 
 
 # Install Composer
@@ -38,6 +41,12 @@ COPY . .
 # Install dependencies
 RUN composer install
 
+# Install dependencies
+RUN composer dump-autoload
+RUN php -v
+RUN composer --version
+RUN php artisan --version
+
 # Change owner of the Laravel directories
 RUN chown -R www-data:www-data /var/www/html/storage
 RUN chown -R www-data:www-data /var/www/html/bootstrap/cache
@@ -45,7 +54,6 @@ RUN chown -R www-data:www-data /var/www/html/bootstrap/cache
 # Clear application cache and config
 RUN php artisan cache:clear
 RUN php artisan config:clear
-# RUN php artisan migrate
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -57,10 +65,8 @@ CMD ["php-fpm"]
 # Copy entrypoint script into the image
 COPY entrypoint.sh /entrypoint.sh
 
-
 # Make the script executable
 RUN chmod +x /entrypoint.sh
-
 
 # Set entrypoint script
 ENTRYPOINT ["/entrypoint.sh"]
