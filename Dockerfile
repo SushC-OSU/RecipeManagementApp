@@ -1,10 +1,17 @@
 # Use PHP 7.4
 FROM php:7.4-fpm
 
-# Install dependencies
+# Set working directory
+WORKDIR /var/www/html
+
+# Set DNS servers (optional but recommended)
+#RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
+
+# Update package lists and install necessary packages
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpng-dev \
+    libjpeg-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     locales \
@@ -17,59 +24,45 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libzip-dev
 
+# Install PHP extensions
+RUN docker-php-ext-configure gd --enable-gd --with-freetype --with-jpeg
+RUN docker-php-ext-install gd pdo pdo_mysql zip
+
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Copy Laravel application files
+COPY . .
+
+# Install dependencies
+RUN composer install
+
+# Change owner of the Laravel directories
+RUN chown -R www-data:www-data /var/www/html/storage
+RUN chown -R www-data:www-data /var/www/html/bootstrap/cache
+
+# Clear application cache and config
+RUN php artisan cache:clear
+RUN php artisan config:clear
+# RUN php artisan migrate
+
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install extensions
-RUN docker-php-ext-install pdo_mysql mbstring zip exif pcntl
-RUN docker-php-ext-configure gd --with-freetype=/usr/include/ --with-jpeg=/usr/include/
-RUN docker-php-ext-install gd
-
-# Install composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Set working directory
-WORKDIR /var/www
-
-# Remove the default nginx index page
-RUN rm -rf /var/www/html
-
-# Symlink public directory
-RUN ln -s public html
-
-# Copy existing application directory permissions
-COPY --chown=www-data:www-data . /var/www
-
-# Copy wait-for-it.sh
-# COPY wait-for-it.sh /wait-for-it.sh
-
-# Make wait-for-it.sh executable
-# RUN chmod +x /wait-for-it.sh
-
-
-# Copy entrypoint.sh
-COPY entrypoint.sh /entrypoint.sh
-
-
-# Change ownership of entrypoint.sh
-RUN chown www-data:www-data /entrypoint.sh
-
-RUN mkdir -p /var/www/storage/logs
-RUN chown -R www-data:www-data /var/www/storage
-
-
-# RUN chown -R www-data:www-data /var/www/storage
-RUN chown -R www-data:www-data /var/www/bootstrap/cache
-
-
-# Change current user to www
-USER www-data
 
 # Expose port 9000 and start php-fpm server
 EXPOSE 9000
 CMD ["php-fpm"]
 
+# Copy entrypoint script into the image
+COPY entrypoint.sh /entrypoint.sh
+
+
+# Make the script executable
+RUN chmod +x /entrypoint.sh
+
+
 # Set entrypoint script
 ENTRYPOINT ["/entrypoint.sh"]
 
-RUN ls -la
+# RUN ls -la

@@ -7,7 +7,7 @@
 chmod +x /entrypoint.sh
 
 # Navigate to the Laravel project directory (update this to your Laravel project directory)
-cd /var/www
+cd /var/www/html
 
 # Run database migrations
 php artisan migrate
@@ -18,8 +18,8 @@ php artisan cache:clear
 # Clear config cache
 php artisan config:cache
 
-chown -R www-data:www-data /var/www/storage
-chown -R www-data:www-data /var/www/bootstrap/cache
+# chown -R www-data:www-data /var/www/storage
+# chown -R www-data:www-data /var/www/bootstrap/cache
 
 
 # Start the Laravel server
